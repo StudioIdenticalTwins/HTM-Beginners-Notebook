@@ -1,0 +1,92 @@
+Help on class Predictor in htm.bindings.algorithms:
+
+htm.bindings.algorithms.Predictor = class Predictor(pybind11_builtins.pybind11_object)
+ |  The Predictor class does N-Step ahead predictions.
+ |  
+ |  Internally, this class uses Classifiers to associate SDRs with future values.
+ |  This class handles missing datapoints.
+ |  
+ |  Compatibility Note:  This class is the replacement for the old SDRClassifier.
+ |  It no longer provides estimates of the actual value.
+ |  
+ |  Example Usage:
+ |      # Predict 1 and 2 time steps into the future.
+ |  
+ |      # Make a sequence of 4 random SDRs, each SDR has 1000 bits and 2% sparsity.
+ |      sequence = [ SDR( 1000 ).randomize( 0.02 ) for i in range(4) ]
+ |  
+ |      # Make category labels for the sequence.
+ |      labels = [ 4, 5, 6, 7 ]
+ |  
+ |      # Make a Predictor and train it.
+ |      pred = Predictor([ 1, 2 ])
+ |      pred.learn( 0, sequence[0], labels[0] )
+ |      pred.learn( 1, sequence[1], labels[1] )
+ |      pred.learn( 2, sequence[2], labels[2] )
+ |      pred.learn( 3, sequence[3], labels[3] )
+ |  
+ |      # Give the predictor partial information, and make predictions
+ |      # about the future.
+ |      pred.reset()
+ |      A = pred.infer( sequence[0] )
+ |      numpy.argmax( A[1] )  ->  labels[1]
+ |      numpy.argmax( A[2] )  ->  labels[2]
+ |  
+ |      B = pred.infer( sequence[1] )
+ |      numpy.argmax( B[1] )  ->  labels[2]
+ |      numpy.argmax( B[2] )  ->  labels[3]
+ |  
+ |  Method resolution order:
+ |      Predictor
+ |      pybind11_builtins.pybind11_object
+ |      builtins.object
+ |  
+ |  Methods defined here:
+ |  
+ |  __init__(...)
+ |      __init__(self: htm.bindings.algorithms.Predictor, steps: List[int], alpha: float = 0.001) -> None
+ |      
+ |      Argument steps is the number of steps into the future to learn and predict.
+ |      The Predictor accepts a list of steps.
+ |      
+ |      Argument alpha is used to adapt the weight matrix during learning.
+ |      A larger alpha results in faster adaptation to the data.
+ |  
+ |  infer(...)
+ |      infer(self: htm.bindings.algorithms.Predictor, pattern: htm::SparseDistributedRepresentation) -> Dict[int, List[float]]
+ |      
+ |      Compute the likelihoods.
+ |      
+ |      Argument pattern is the SDR containing the active input bits.
+ |      
+ |      Returns a dictionary whos keys are prediction steps, and values are PDFs.
+ |      See help(Classifier.infer) for details about PDFs.
+ |  
+ |  learn(...)
+ |      learn(*args, **kwargs)
+ |      Overloaded function.
+ |      
+ |      1. learn(self: htm.bindings.algorithms.Predictor, recordNum: int, pattern: htm::SparseDistributedRepresentation, classification: List[int]) -> None
+ |      
+ |      Learn from example data.
+ |      
+ |      Argument recordNum is an incrementing integer for each record.
+ |      Gaps in numbers correspond to missing records.
+ |      
+ |      Argument pattern is the SDR containing the active input bits.
+ |      
+ |      Argument classification is the current category or bucket index.
+ |      This may also be a list for when the input has multiple categories.
+ |      
+ |      2. learn(self: htm.bindings.algorithms.Predictor, recordNum: int, pattern: htm::SparseDistributedRepresentation, classification: int) -> None
+ |  
+ |  reset(...)
+ |      reset(self: htm.bindings.algorithms.Predictor) -> None
+ |      
+ |      For use with time series datasets.
+ |  
+ |  ----------------------------------------------------------------------
+ |  Static methods inherited from pybind11_builtins.pybind11_object:
+ |  
+ |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+ |      Create and return a new object.  See help(type) for accurate signature.

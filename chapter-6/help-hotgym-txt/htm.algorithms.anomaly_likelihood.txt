@@ -1,0 +1,291 @@
+Help on module htm.algorithms.anomaly_likelihood in htm.algorithms:
+
+NAME
+    htm.algorithms.anomaly_likelihood
+
+DESCRIPTION
+    This module analyzes and estimates the distribution of averaged anomaly scores
+    from a given model. Given a new anomaly score ``s``, estimates
+    ``P(score >= s)``.
+    
+    The number ``P(score >= s)`` represents the likelihood of the current state of
+    predictability. For example, a likelihood of 0.01 or 1% means we see this much
+    predictability about one out of every 100 records. The number is not as unusual
+    as it seems. For records that arrive every minute, this means once every hour
+    and 40 minutes. A likelihood of 0.0001 or 0.01% means we see it once out of
+    10,000 records, or about once every 7 days.
+    
+    USAGE
+    +++++
+    
+    There are two ways to use the code: using the
+    :class:`.anomaly_likelihood.AnomalyLikelihood` helper class or using the raw
+    individual functions :func:`~.anomaly_likelihood.estimateAnomalyLikelihoods` and
+    :func:`~.anomaly_likelihood.updateAnomalyLikelihoods`.
+    
+    
+    Low-Level Function Usage
+    ++++++++++++++++++++++++
+    
+    There are two primary interface routines.
+    
+    - :func:`~.anomaly_likelihood.estimateAnomalyLikelihoods`: batch routine, called
+      initially and once in a while
+    - :func:`~.anomaly_likelihood.updateAnomalyLikelihoods`: online routine, called
+      for every new data point
+    
+    Initially:
+    
+    .. code-block:: python
+    
+       likelihoods, avgRecordList, estimatorParams = \
+         estimateAnomalyLikelihoods(metric_data)
+    
+    Whenever you get new data:
+    
+    .. code-block:: python
+    
+       likelihoods, avgRecordList, estimatorParams = \
+         updateAnomalyLikelihoods(data2, estimatorParams)
+    
+    And again (make sure you use the new estimatorParams returned in the above call
+    to updateAnomalyLikelihoods!).
+    
+    .. code-block:: python
+    
+       likelihoods, avgRecordList, estimatorParams = \
+         updateAnomalyLikelihoods(data3, estimatorParams)
+    
+    Every once in a while update estimator with a lot of recent data.
+    
+    .. code-block:: python
+    
+       likelihoods, avgRecordList, estimatorParams = \
+         estimateAnomalyLikelihoods(lots_of_metric_data)
+    
+    
+    PARAMS
+    ++++++
+    
+    The parameters dict returned by the above functions has the following
+    structure. Note: the client does not need to know the details of this.
+    
+    ::
+    
+     {
+       "distribution":               # describes the distribution
+         {
+           "name": STRING,           # name of the distribution, such as 'normal'
+           "mean": SCALAR,           # mean of the distribution
+           "variance": SCALAR,       # variance of the distribution
+    
+           # There may also be some keys that are specific to the distribution
+         },
+    
+       "historicalLikelihoods": []   # Contains the last windowSize likelihood
+                                     # values returned
+    
+       "movingAverage":              # stuff needed to compute a rolling average
+                                     # of the anomaly scores
+         {
+           "windowSize": SCALAR,     # the size of the averaging window
+           "historicalValues": [],   # list with the last windowSize anomaly
+                                     # scores
+           "total": SCALAR,          # the total of the values in historicalValues
+         },
+    
+     }
+
+CLASSES
+    builtins.object
+        AnomalyLikelihood
+    
+    class AnomalyLikelihood(builtins.object)
+     |  AnomalyLikelihood(claLearningPeriod=None, learningPeriod=288, estimationSamples=100, historicWindowSize=8640, reestimationPeriod=100)
+     |  
+     |  Helper class for running anomaly likelihood computation. To use it simply
+     |  create an instance and then feed it successive anomaly scores:
+     |  
+     |  .. code-block:: python
+     |  
+     |      anomalyLikelihood = AnomalyLikelihood()
+     |      while still_have_data:
+     |        # Get anomaly score from model
+     |  
+     |        # Compute probability that an anomaly has ocurred
+     |        anomalyProbability = anomalyLikelihood.anomalyProbability(
+     |            value, anomalyScore, timestamp)
+     |  
+     |  Methods defined here:
+     |  
+     |  __eq__(self, o)
+     |      Return self==value.
+     |  
+     |  __init__(self, claLearningPeriod=None, learningPeriod=288, estimationSamples=100, historicWindowSize=8640, reestimationPeriod=100)
+     |      NOTE: Anomaly likelihood scores are reported at a flat 0.5 for
+     |      learningPeriod + estimationSamples iterations.
+     |      
+     |      claLearningPeriod and learningPeriod are specifying the same variable,
+     |      although claLearningPeriod is a deprecated name for it.
+     |      
+     |      :param learningPeriod: (claLearningPeriod: deprecated) - (int) the number of
+     |        iterations required for the algorithm to learn the basic patterns in the
+     |        dataset and for the anomaly score to 'settle down'. The default is based
+     |        on empirical observations but in reality this could be larger for more
+     |        complex domains. The downside if this is too large is that real anomalies
+     |        might get ignored and not flagged.
+     |      
+     |      :param estimationSamples: (int) the number of reasonable anomaly scores
+     |        required for the initial estimate of the Gaussian. The default of 100
+     |        records is reasonable - we just need sufficient samples to get a decent
+     |        estimate for the Gaussian. It's unlikely you will need to tune this since
+     |        the Gaussian is re-estimated every 10 iterations by default.
+     |      
+     |      :param historicWindowSize: (int) size of sliding window of historical
+     |        data points to maintain for periodic reestimation of the Gaussian. Note:
+     |        the default of 8640 is based on a month's worth of history at 5-minute
+     |        intervals.
+     |      
+     |      :param reestimationPeriod: (int) how often we re-estimate the Gaussian
+     |        distribution. The ideal is to re-estimate every iteration but this is a
+     |        performance hit. In general the system is not very sensitive to this
+     |        number as long as it is small relative to the total number of records
+     |        processed.
+     |  
+     |  __str__(self)
+     |      Return str(self).
+     |  
+     |  anomalyProbability(self, value, anomalyScore, timestamp=None)
+     |      Compute the probability that the current value plus anomaly score represents
+     |      an anomaly given the historical distribution of anomaly scores. The closer
+     |      the number is to 1, the higher the chance it is an anomaly.
+     |      
+     |      :param value: the current metric ("raw") input value, eg. "orange", or
+     |                     '21.2' (deg. Celsius), ...
+     |      :param anomalyScore: the current anomaly score
+     |      :param timestamp: [optional] timestamp of the ocurrence,
+     |                         default (None) results in using iteration step.
+     |      :returns: the anomalyLikelihood for this record.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods defined here:
+     |  
+     |  computeLogLikelihood(likelihood)
+     |      Compute a log scale representation of the likelihood value. Since the
+     |      likelihood computations return low probabilities that often go into four 9's
+     |      or five 9's, a log value is more useful for visualization, thresholding,
+     |      etc.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  __hash__ = None
+
+FUNCTIONS
+    estimateAnomalyLikelihoods(anomalyScores, averagingWindow=10, skipRecords=0, verbosity=0)
+        Given a series of anomaly scores, compute the likelihood for each score. This
+        function should be called once on a bunch of historical anomaly scores for an
+        initial estimate of the distribution. It should be called again every so often
+        (say every 50 records) to update the estimate.
+        
+        :param anomalyScores: a list of records. Each record is a list with the
+                              following three elements: [timestamp, value, score]
+        
+                              Example::
+        
+                                  [datetime.datetime(2013, 8, 10, 23, 0), 6.0, 1.0]
+        
+                              For best results, the list should be between 1000
+                              and 10,000 records
+        :param averagingWindow: integer number of records to average over
+        :param skipRecords: integer specifying number of records to skip when
+                            estimating distributions. If skip records are >=
+                            len(anomalyScores), a very broad distribution is returned
+                            that makes everything pretty likely.
+        :param verbosity: integer controlling extent of printouts for debugging
+        
+                            0 = none
+                            1 = occasional information
+                            2 = print every record
+        
+        :returns: 3-tuple consisting of:
+        
+                  - likelihoods
+        
+                    numpy array of likelihoods, one for each aggregated point
+        
+                  - avgRecordList
+        
+                    list of averaged input records
+        
+                  - params
+        
+                    a small JSON dict that contains the state of the estimator
+    
+    estimateNormal(sampleData, performLowerBoundCheck=True)
+        :param sampleData:
+        :type sampleData: Numpy array.
+        :param performLowerBoundCheck:
+        :type performLowerBoundCheck: bool
+        :returns: A dict containing the parameters of a normal distribution based on
+            the ``sampleData``.
+    
+    isValidEstimatorParams(p)
+        :returns: ``True`` if ``p`` is a valid estimator params as might be returned
+          by ``estimateAnomalyLikelihoods()`` or ``updateAnomalyLikelihoods``,
+          ``False`` otherwise.  Just does some basic validation.
+    
+    nullDistribution(mean=0.5, verbosity=0)
+        :param verbosity: integer controlling extent of printouts for debugging
+        :type verbosity: int
+        :returns: A distribution that is very broad and makes every anomaly score
+            between 0 and 1 pretty likely.
+    
+    tailProbability(x, distributionParams)
+        Given the normal distribution specified by the mean and standard deviation
+        in distributionParams, return the probability of getting samples further
+        from the mean. For values above the mean, this is the probability of getting
+        samples > x and for values below the mean, the probability of getting
+        samples < x. This is the Q-function: the tail probability of the normal distribution.
+        
+        :param distributionParams: dict with 'mean' and 'stdev' of the distribution
+    
+    updateAnomalyLikelihoods(anomalyScores, params, verbosity=0)
+        Compute updated probabilities for anomalyScores using the given params.
+        
+        :param anomalyScores: a list of records. Each record is a list with the
+                              following three elements: [timestamp, value, score]
+        
+                              Example::
+        
+                                  [datetime.datetime(2013, 8, 10, 23, 0), 6.0, 1.0]
+        
+        :param params: the JSON dict returned by estimateAnomalyLikelihoods
+        :param verbosity: integer controlling extent of printouts for debugging
+        :type verbosity: int
+        
+        :returns: 3-tuple consisting of:
+        
+                  - likelihoods
+        
+                    numpy array of likelihoods, one for each aggregated point
+        
+                  - avgRecordList
+        
+                    list of averaged input records
+        
+                  - params
+        
+                    an updated JSON object containing the state of this metric.
+
+FILE
+    /usr/local/lib/python3.7/site-packages/htm.core-2.1.1-py3.7-macosx-10.14-x86_64.egg/htm/algorithms/anomaly_likelihood.py

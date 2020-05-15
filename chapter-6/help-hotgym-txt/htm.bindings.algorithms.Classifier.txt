@@ -1,0 +1,87 @@
+Help on class Classifier in htm.bindings.algorithms:
+
+htm.bindings.algorithms.Classifier = class Classifier(pybind11_builtins.pybind11_object)
+ |  The SDR Classifier takes the form of a single layer classification network.
+ |  It accepts SDRs as input and outputs a predicted distribution of categories.
+ |  
+ |  Categories are labeled using unsigned integers.  Other data types must be
+ |  enumerated or transformed into postitive integers.  There are as many output
+ |  units as the maximum category label.
+ |  
+ |  Example Usage:
+ |      # Make a random SDR and associate it with a category.
+ |      inputData  = SDR( 1000 ).randomize( 0.02 )
+ |      categories = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }
+ |      clsr = Classifier()
+ |      clsr.learn( inputData, categories['B'] )
+ |      numpy.argmax( clsr.infer( inputData ) )  ->  categories['B']
+ |  
+ |      # Estimate a scalar value.  The Classifier only accepts categories, so
+ |      # put real valued inputs into bins (AKA buckets) by subtracting the
+ |      # minimum value and dividing by a resolution.
+ |      scalar     = 567.8
+ |      minimum    = 500
+ |      resolution = 10
+ |      clsr.learn( inputData, int((scalar - minimum) / resolution) )
+ |      numpy.argmax( clsr.infer( inputData ) ) * resolution + minimum  ->  560
+ |  
+ |  During inference, the output is calculated by first doing a weighted
+ |  summation of all the inputs, and then perform a softmax nonlinear function to
+ |  get the predicted distribution of category labels.
+ |  
+ |  During learning, the connection weights between input units and output units
+ |  are adjusted to maximize the likelihood of the model.
+ |  
+ |  References:
+ |      - Alex Graves. Supervised Sequence Labeling with Recurrent Neural Networks,
+ |       PhD Thesis, 2008
+ |      - J. S. Bridle. Probabilistic interpretation of feedforward classification
+ |       network outputs, with relationships to statistical pattern recognition
+ |      - In F. Fogleman-Soulie and J.Herault, editors, Neurocomputing: Algorithms,
+ |       Architectures and Applications, pp 227-236, Springer-Verlag, 1990
+ |  
+ |  Method resolution order:
+ |      Classifier
+ |      pybind11_builtins.pybind11_object
+ |      builtins.object
+ |  
+ |  Methods defined here:
+ |  
+ |  __init__(...)
+ |      __init__(self: htm.bindings.algorithms.Classifier, alpha: float = 0.001) -> None
+ |      
+ |      Argument alpha is used to adapt the weight matrix during learning.
+ |      A larger alpha results in faster adaptation to the data.
+ |  
+ |  infer(...)
+ |      infer(self: htm.bindings.algorithms.Classifier, pattern: htm::SparseDistributedRepresentation) -> List[float]
+ |      
+ |      Compute the likelihoods for each category / bucket.
+ |      
+ |      Argument pattern is the SDR containing the active input bits.
+ |      
+ |      Returns the Probablility Distribution Function (PDF) of the categories.
+ |      The PDF is a list of probablilities which sums to 1.  Each index in this list is
+ |      a category label, and each value is the likelihood of the that category.
+ |      Use "numpy.argmax" to find the category with the greatest probablility.
+ |  
+ |  learn(...)
+ |      learn(*args, **kwargs)
+ |      Overloaded function.
+ |      
+ |      1. learn(self: htm.bindings.algorithms.Classifier, pattern: htm::SparseDistributedRepresentation, classification: List[int]) -> None
+ |      
+ |      Learn from example data.
+ |      
+ |      Argument pattern is the SDR containing the active input bits.
+ |      
+ |      Argument classification is the current category or bucket index.
+ |      This may also be a list for when the input has multiple categories.
+ |      
+ |      2. learn(self: htm.bindings.algorithms.Classifier, pattern: htm::SparseDistributedRepresentation, classification: int) -> None
+ |  
+ |  ----------------------------------------------------------------------
+ |  Static methods inherited from pybind11_builtins.pybind11_object:
+ |  
+ |  __new__(*args, **kwargs) from pybind11_builtins.pybind11_type
+ |      Create and return a new object.  See help(type) for accurate signature.
